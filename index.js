@@ -3,7 +3,7 @@ const { parse: parseLua } = require('luaparse')
 
 /**
  * @link https://github.com/fstirlitz/luaparse/blob/0f525b152516bc8afa34564de2423b039aa83bc1/luaparse.js#L1414
- * @param {string} id 
+ * @param {string} id
  * @returns {boolean}
  */
 function isKeyword(id) {
@@ -32,6 +32,7 @@ const formatLuaString = (string, singleQuote, multilineString) => {
     return `[[${string}]]`
   } else {
     string = string.replace(/\n/g, "\\n")
+    string = string.replace(/\r/g, "")
     return (singleQuote ? `'${string.replace(/'/g, "\\'")}'` : `"${string.replace(/"/g, '\\"')}"`)
   }
 }
@@ -39,7 +40,8 @@ const formatLuaString = (string, singleQuote, multilineString) => {
 const valueKeys = { false: 'false', true: 'true', null: 'nil' }
 
 const formatLuaKey = (string, singleQuote) =>
-  valueKeys[string] ? `[${valueKeys[string]}]` : (string.match(/^[a-zA-Z_][a-zA-Z_0-9]*$/) && !isKeyword(string)) ? string : `[${formatLuaString(string, singleQuote)}]`
+  // valueKeys[string] ? `[${valueKeys[string]}]` : (string.match(/^[a-zA-Z_][a-zA-Z_0-9]*$/) && !isKeyword(string)) ? string : `[${formatLuaString(string, singleQuote)}]`
+  valueKeys[string] ? `[${valueKeys[string]}]` : typeof(string) === 'number' ? `[${string}]` : (string.match(/^[a-zA-Z_][a-zA-Z_0-9]*$/) && !isKeyword(string)) ? string : `[${formatLuaString(string, singleQuote)}]`
 
 const format = (value, options = { eol: '\n', singleQuote: true, multilineString: false, spaces: 2 }) => {
   options = options || {}
@@ -47,6 +49,13 @@ const format = (value, options = { eol: '\n', singleQuote: true, multilineString
   options.singleQuote = isBoolean(options.singleQuote) ? options.singleQuote : true
   options.spaces = isNull(options.spaces) || isNumber(options.spaces) || isString(options.spaces) ? options.spaces : 2
 
+  const getKeys = (obj)=>{
+    let ret = []
+    for(let k in obj) {
+      ret.push(isNaN(k) ? k: Number(k))
+    }
+    return ret;
+  }
   const rec = (value, i = 0) => {
     if (isNull(value)) {
       return 'nil'
@@ -75,11 +84,13 @@ const format = (value, options = { eol: '\n', singleQuote: true, multilineString
       if (options.spaces) {
         const spaces = isNumber(options.spaces) ? repeat(' ', options.spaces * (i + 1)) : repeat(options.spaces, i + 1)
         const spacesEnd = isNumber(options.spaces) ? repeat(' ', options.spaces * i) : repeat(options.spaces, i)
-        return `{${eol}${keys(value)
+        // return `{${eol}${keys(value)
+        return `{${eol}${getKeys(value)
           .map(key => `${spaces}${formatLuaKey(key, options.singleQuote, false)} = ${rec(value[key], i + 1)},`)
           .join(eol)}${eol}${spacesEnd}}`
       }
-      return `{${keys(value)
+      // return `{${keys(value)
+      return `{${getKeys(value)
         .map(key => `${formatLuaKey(key, options.singleQuote, false)}=${rec(value[key], i + 1)},`)
         .join('')}}`
     }
